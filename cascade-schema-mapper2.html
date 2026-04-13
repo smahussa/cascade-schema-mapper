@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cascade Schema Mapper</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --orange: #E8541A;
+    --orange-dark: #c44614;
+    --orange-light: #fff3ee;
+    --orange-dim: rgba(232,84,26,0.08);
+    --bg: #ffffff;
+    --surface: #f9f9f9;
+    --surface2: #f2f2f2;
+    --border: #e5e5e5;
+    --border2: #d0d0d0;
+    --text: #1a1a1a;
+    --muted: #6b7280;
+    --accent: #E8541A;
+    --accent-dim: rgba(232,84,26,0.08);
+    --blue: #2563eb;
+    --green: #16a34a;
+    --red: #dc2626;
+    --amber: #d97706;
+    --radius: 8px;
+    --radius-lg: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.04);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 14px; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* Header */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 100;
+    box-shadow: var(--shadow);
+  }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: var(--orange);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: -0.5px;
+  }
+  .logo-text { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+  .logo-sub { font-size: 11px; color: var(--muted); font-weight: 400; margin-left: 2px; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .api-status { font-size: 11px; font-family: monospace; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+  .api-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); }
+  .api-dot.ok { background: var(--green); }
+
+  /* Main layout */
+  main { flex: 1; display: grid; grid-template-columns: 260px 1fr; height: calc(100vh - 58px); }
+
+  /* Sidebar */
+  aside {
+    border-right: 1px solid var(--border);
+    padding: 1.5rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    background: var(--surface);
+  }
+  .sidebar-section { display: flex; flex-direction: column; gap: 8px; }
+  .sidebar-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+
+  /* Steps nav */
+  .steps { display: flex; flex-direction: column; gap: 3px; }
+  .step-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: var(--radius);
+    cursor: pointer; transition: all 0.15s;
+    font-size: 13px; color: var(--muted); font-weight: 500;
+  }
+  .step-item.active { background: var(--orange-dim); color: var(--orange); }
+  .step-item.done { color: var(--text); }
+  .step-item.done:hover { background: var(--surface2); }
+  .step-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 1.5px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-family: monospace; flex-shrink: 0;
+    background: #fff;
+  }
+  .step-item.active .step-num { border-color: var(--orange); background: var(--orange); color: #fff; }
+  .step-item.done .step-num { border-color: var(--orange); background: var(--orange); color: #fff; font-size: 10px; }
+
+  /* API key */
+  .api-input-wrap { position: relative; }
+  .api-input-wrap input {
+    width: 100%; background: #fff; border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 8px 34px 8px 10px;
+    font-family: monospace; font-size: 11px; color: var(--text); outline: none;
+    transition: border-color 0.15s; box-shadow: var(--shadow);
+  }
+  .api-input-wrap input:focus { border-color: var(--orange); }
+  .api-input-wrap button { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--muted); font-size: 13px; }
+  .api-hint { font-size: 10px; color: var(--muted); line-height: 1.5; }
+  .api-hint a { color: var(--orange); text-decoration: none; }
+
+  /* Mini stats */
+  .mini-stats { display: flex; flex-direction: column; gap: 5px; }
+  .mini-stat { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); }
+  .mini-stat strong { color: var(--text); font-weight: 600; font-family: monospace; }
+
+  /* Entity tabs */
+  .entity-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .etab {
+    flex: 1; padding: 6px 4px; font-size: 11px; font-weight: 600;
+    border: 1.5px solid var(--border); border-radius: var(--radius);
+    background: #fff; color: var(--muted); cursor: pointer; text-align: center;
+    transition: all 0.15s; font-family: 'Inter', sans-serif; min-width: 48px;
+  }
+  .etab.active { border-color: var(--orange); color: var(--orange); background: var(--orange-light); }
+
+  /* Content */
+  .content { overflow-y: auto; padding: 2rem; display: flex; flex-direction: column; gap: 1.5rem; background: #fff; }
+
+  /* Panels */
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow); }
+  .panel-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: #fff; }
+  .panel-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .panel-body { padding: 18px; }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 2px dashed var(--border2); border-radius: var(--radius-lg);
+    padding: 3rem 2rem; text-align: center; cursor: pointer;
+    transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 12px;
+    background: var(--surface);
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--orange); background: var(--orange-light); }
+  .upload-icon { font-size: 2.5rem; }
+  .upload-title { font-size: 15px; font-weight: 600; color: var(--text); }
+  .upload-sub { font-size: 12px; color: var(--muted); }
+  #fileInput { display: none; }
+
+  /* File info */
+  .file-info {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 14px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .file-name { font-family: monospace; font-size: 12px; font-weight: 500; color: var(--text); }
+  .file-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: var(--surface); padding: 8px 12px; text-align: left; font-weight: 600; font-size: 11px; color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 7px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; font-family: monospace; color: var(--muted); max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface); }
+
+  /* Column chips */
+  .col-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .col-chip {
+    padding: 5px 11px; border-radius: 99px; border: 1.5px solid var(--border);
+    font-size: 11px; font-family: monospace; cursor: pointer;
+    transition: all 0.15s; color: var(--muted); background: #fff;
+  }
+  .col-chip.selected { border-color: var(--orange); color: var(--orange); background: var(--orange-light); }
+
+  /* Buttons */
+  .btn {
+    padding: 9px 18px; border-radius: var(--radius); border: 1.5px solid var(--border);
+    background: #fff; color: var(--text); font-family: 'Inter', sans-serif;
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+    display: inline-flex; align-items: center; gap: 7px;
+    box-shadow: var(--shadow);
+  }
+  .btn:hover { border-color: var(--text); background: var(--surface); }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-accent { background: var(--orange); border-color: var(--orange); color: #fff; }
+  .btn-accent:hover { background: var(--orange-dark); border-color: var(--orange-dark); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn-ghost { border-color: transparent; color: var(--muted); box-shadow: none; }
+  .btn-ghost:hover { color: var(--text); background: var(--surface); border-color: var(--border); }
+
+  /* Mapping rows */
+  .mapping-row { display: grid; grid-template-columns: 200px 30px 1fr 110px 28px; gap: 8px; padding: 9px 14px; align-items: center; border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  .mapping-row:last-child { border-bottom: none; }
+  .mapping-row:hover { background: var(--surface); }
+  .src-col { font-family: monospace; font-size: 11px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .arrow-col { color: var(--muted); font-size: 13px; text-align: center; }
+  .target-select { width: 100%; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 5px 8px; font-family: monospace; font-size: 11px; color: var(--text); outline: none; box-shadow: var(--shadow); }
+  .target-select:focus { border-color: var(--orange); }
+  .method-badge { font-size: 9px; font-weight: 700; padding: 3px 7px; border-radius: 99px; text-align: center; white-space: nowrap; letter-spacing: 0.04em; }
+  .badge-exact { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+  .badge-fuzzy { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
+  .badge-ai { background: #fef3c7; color: #b45309; border: 1px solid #fcd34d; }
+  .badge-none { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+  .del-btn { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 14px; padding: 2px; border-radius: 4px; }
+  .del-btn:hover { color: var(--red); background: #fee2e2; }
+
+  /* Filter tabs */
+  .filter-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); }
+  .ftab { padding: 9px 16px; font-size: 12px; cursor: pointer; border: none; border-bottom: 2px solid transparent; background: none; color: var(--muted); font-family: 'Inter', sans-serif; font-weight: 500; margin-bottom: -1px; display: flex; align-items: center; gap: 5px; transition: color 0.15s; }
+  .ftab.active { color: var(--orange); border-bottom-color: var(--orange); }
+  .ftab:hover:not(.active) { color: var(--text); }
+  .ftab-count { background: var(--surface2); border-radius: 99px; padding: 1px 6px; font-size: 10px; font-family: monospace; }
+  .ftab.active .ftab-count { background: var(--orange-light); color: var(--orange); }
+
+  /* Loading */
+  .loading-bar { height: 3px; background: var(--border); border-radius: 99px; overflow: hidden; margin-bottom: 10px; }
+  .loading-bar-fill { height: 100%; background: var(--orange); border-radius: 99px; transition: width 0.4s; }
+  .loading-msg { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--orange); border-radius: 50%; animation: spin 0.6s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+  /* Code */
+  .code-wrap { background: #1e1e1e; border: 1px solid var(--border); border-radius: var(--radius); position: relative; overflow: hidden; box-shadow: var(--shadow-md); }
+  pre { padding: 18px; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 12px; line-height: 1.7; color: #d4d4d4; overflow: auto; max-height: 460px; white-space: pre; }
+  .copy-btn { position: absolute; top: 8px; right: 8px; padding: 5px 10px; font-size: 11px; background: #2d2d2d; border: 1px solid #444; border-radius: 6px; color: #ccc; cursor: pointer; font-family: 'Inter', sans-serif; }
+  .copy-btn:hover { color: #fff; border-color: #666; }
+
+  /* Output tabs */
+  .out-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .otab { padding: 6px 14px; font-size: 12px; border: 1.5px solid var(--border); border-radius: 99px; background: #fff; color: var(--muted); cursor: pointer; font-family: 'Inter', sans-serif; font-weight: 500; transition: all 0.15s; }
+  .otab.active { border-color: var(--orange); color: var(--orange); background: var(--orange-light); }
+
+  /* Alert */
+  .alert { padding: 10px 14px; border-radius: var(--radius); font-size: 12px; display: flex; align-items: flex-start; gap: 8px; }
+  .alert-warn { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; }
+
+  /* Steps panels */
+  .step-panel { display: none; flex-direction: column; gap: 1.5rem; }
+  .step-panel.active { display: flex; }
+
+  /* Flex helpers */
+  .flex { display: flex; }
+  .gap-8 { gap: 8px; }
+  .gap-12 { gap: 12px; }
+  .items-center { align-items: center; }
+  .justify-between { justify-content: space-between; }
+  .mt-4 { margin-top: 4px; }
+  .mt-8 { margin-top: 8px; }
+  .mt-12 { margin-top: 12px; }
+  .text-muted { color: var(--muted); font-size: 12px; }
+
+  /* Summary */
+  .sec-divider { display: flex; align-items: center; gap: 10px; margin: 1.5rem 0 1rem; padding-bottom: 10px; border-bottom: 2px solid var(--border); }
+  .sec-title { font-size: 15px; font-weight: 700; color: var(--text); }
+  .sec-pill { font-size: 10px; color: var(--muted); background: var(--surface2); padding: 2px 8px; border-radius: 99px; border: 1px solid var(--border); font-weight: 500; }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <img src="data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAA0AKIDASIAAhEBAxEB/8QAGwABAQADAQEBAAAAAAAAAAAAAAYEBQcDCAL/xAA7EAABAgUDAgMFBgILAAAAAAABAgQAAwUGEQcSITFREyJBCBQVYYEWFyMyUnEk0SU1QkNVYnORk6Gy/8QAGQEBAQEBAQEAAAAAAAAAAAAAAAEFAgQG/8QAKxEAAQMCBQIFBQEAAAAAAAAAAAECAwQRBRIhMUFx8CJRYYGhQpGx0fHh/9oADAMBAAIRAxEAPwD7LhCEAIRB6hX2KPN+HUgy5r1KgZy1DcmX/l+ZPr2/fpubdu1lWKA4qMpO1w1lKW4bbvMkgE8dwccGPC3EqZ0zoUd4k7X7Gi/CqpkDahWeF3aX9F4/hRwjnX3rU/8Awl1/yJimsy5pNzN3E+Q1mN0yVhBC1AkkjPpEgxOlqHpHG+6+5ajCKymjWSVlmp0/Zv4QhHvM0QhCAEIQgBCEIAQhCAEIQgBCEIAQhCAEYtWkOHVNcN2jpTSfMllMuckZKD3jKhEc1HIqLydNcrXI5ODi1p2S6e3U4Y1pC5cpniZPwT+LknbhXY4PPyPQ9OxsmjZk3S3aSJciUkYCUJwIlLJu5dbrdQpzyU2kzpPEky8gzAlRBzk+nB+pixjIwempoolfBrdV1XffbvqbWO1dXNOjKjSyJom22/v8bEhqBZ7Ks06c7bSUyajKQVIWgY8THO1QHXPoeucRqdDP6qqX+un/AMxfvnUlkznO3CwiVJQVqJOOBGisKs0esU1U2nNW7NwMe8t5aAkpPfjqOxivpIG4gyVqojlRdPP1EdbUPwySFyK5qKll8vTp+Pcm9ctTfu+pzBrTKaaxcVWneBTmCc+Y8DcQOSMlIAHJJxxyRA1i9/aDs+iKuu57Ytx7SZYC3bRsspnN0H1JCjgD1Pnx+3MentJzF2tqtYGoz1tOn0SnzVNnipad3gkkkKx3wpRHfZiKi+tdtOKbZz58wr1OrTtbdQbMEZWZ6yMBK048qeed2OM+vEbJiGXe2q7BhoSvUeihKy6kJDCVPH9+tWzaoA87TuJAPIQY02gupF33DeFatHUBizYVlq0kPWslvL2hUpYBUT5lZOJkrofUjqDHKtV65cV4O7Bs5tZrYVA/04/oDQCSkjJ2IWVcJJlJWSSOPEAxnrk3jdF50TWi09SbtsiZarYTE0t5MD1E5E+UrdknHQpSpR567E9MRbCxe3RqfqDWtYalp7pzT6FLXS5HiOZ9WKszCNu4p2qHHnSAME9TwIrLWrOoNvU2s1zVlxb7elMmwnS5lLCzjBO7cFck/lCQOpz8oldVbd0IuK75z+4roZ0evSfwnSm1SS3mqIGBvSQeccZxkjHJGI5fazOs3HTNV7BtGr1C4bcktUTqZNmzzNJmonIWmWhR4O9KVjjG7aD6xLA6DRb91zv9uu4bHtqhUy3ytXufxJRM1yEkg87h69gBkEZOIs9ENUXV6uqpblyUgUW6qOrDxmM7FpzjenOcDJAIyeqSCQYm9CtYLBZ6WUelVmuM6LUaU2DRy1cgy1bpfl3AY827rxzkmNLVdaUVGk33ddDoTFtSqbI9zp1ZVJIcunUwJQgDoQBkr7hISDjMLAwq1r1ebe8nlUa0+nnT9jcMukz3vhFU0pz5lA7ucpSpQO3AykHkiOne0hfVZsDTuVcFvhot0t9KkfxEsrQUKSsngEfpHrHCKZQ9SEaCTrCRpPPmsnY99NR+IShM8QqExMwI9MBKU46kDHrHvqLdf2t9jmgups3xHjGpyGDrJyd8pEwJJ+ZRsV9Yti2Lyo6ka12RTZdwXvZ9DqVvBSPeJ9LmqTNlJXwFcqPHI6pHOASM5jO1T1RuuXdtm0nTmfRXEm52njN5r6UooJJ8vKTlPHBGDz25jE1r1XslxpM9tajVdvXK1U2iGUhoxzOO9WE5JTkcegBJJwAI5reFryqBW9ILYuupzaVLRTZiX7kOxIU28SYpSh4h4Tt37e3GOYIgPonTT72vi7j7wfs17h7v+B8M37/F3D827027ov45do9QdO6NXXa7RvtdxPZrbEyRMrcp6qXLCk5WEp5SMlIJ6cj5R1GOVORCEIgEIQgD56my6u0r018xkO5c2W4UuVMRLP6jz05H/RjqlhXTVa3Oms6jS/d5sqTvE3zISs5Axgjjrnr9IsYRiUWEPo5MzJVsu6W0U+gxDHI66LI+FMyJot9U+Di2pNw3A9fKor5qGMpCgfAlkq8Xnyq3f2h2/mOK3TCzplHSKvUdyXsxGESQceGk/q7k9vT9+lk6pzF07bu3DWVNntiTJmKTkoJ7RlRYMIy1S1Ez868X47/0lTjeajbSwMyJ9Vuf7zfXjr5O2zd41mNXciU4bzUlMyVNQFIWD1BB4IiSpGlmndJq6atTrPpLd4lW5EwSchB7pSeEn9gIsoRtGAaVratvNbpcXRJpUhNacy/CmvTlUxSOPLkngeVI49BiP3dds0G66aim3FS5FSaImicmVOBKQsAgK4+Sj/vG3hAEM80h01euVunlosHM9f55s0rWtXGOSVZPEVFvUKi29TxT6FSmdNag58JtJTLST3OOp+ZjYwhcEnc+m1h3NURUa7atNevMjM9UrateP1FON31zGTVLEs+p0Btb723mMyktVBclmlGyUhQGAdqcDOCeT3PeKOELgAADAGBEanS3T9NHnUdNrshT589Lma3yrYqakEBZGeuFEZ/kIsoQBNWvYNlWw495oFsUunueQJ8punxQD1AWfMB8swu2w7Pu15Jd3JQWtTnSJfhylT9x2JznAGcdTFLCAJi09PrLtSozKjblusqa7mSTIXNkpIUUEhRTyemUpP0inhCAEIQgBCEIAQhCAEIQgBCEIAQhCAEIQgBCEIAQhCAEIQgBCEIAQhCAP//Z" alt="Cascade" style="height:28px;width:auto">
+    <span style="font-size:13px;font-weight:600;color:var(--muted);margin-left:4px">Schema Mapper</span>
+  </div>
+  <div class="header-right">
+    <div class="api-status">
+      <div class="api-dot" id="apiDot"></div>
+      <span id="apiStatusText">no api key</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- Sidebar -->
+  <aside>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Workflow</div>
+      <nav class="steps">
+        <div class="step-item active" id="nav1" onclick="goToStep(1)">
+          <div class="step-num" id="snum1">1</div>
+          <span>Upload data</span>
+        </div>
+        <div class="step-item" id="nav2" onclick="goToStep(2)">
+          <div class="step-num" id="snum2">2</div>
+          <span>Review mappings</span>
+        </div>
+        <div class="step-item" id="nav3" onclick="goToStep(3)">
+          <div class="step-num" id="snum3">3</div>
+          <span>Export dbt SQL</span>
+        </div>
+      </nav>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Entity</div>
+      <div class="entity-tabs">
+        <button class="etab active" id="etab-applications" onclick="setEntity('applications', this)">Apps</button>
+        <button class="etab" id="etab-customers" onclick="setEntity('customers', this)">Custs</button>
+        <button class="etab" id="etab-loans" onclick="setEntity('loans', this)">Loans</button>
+        <button class="etab" id="etab-transactions" onclick="setEntity('transactions', this)">Txns</button>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">API Key</div>
+      <div class="api-input-wrap">
+        <input type="password" id="apiKeyInput" value="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" oninput="updateApiStatus()" onpaste="setTimeout(updateApiStatus,50)">
+        <button onclick="toggleApiVis()">👁</button>
+      </div>
+      <div class="api-hint mt-4">
+        <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Knowledge Base</div>
+      <div class="mini-stats">
+        <div class="mini-stat"><span>Clients trained on</span><strong>119</strong></div>
+        <div class="mini-stat"><span>Loan mappings</span><strong>436</strong></div>
+        <div class="mini-stat"><span>Customer mappings</span><strong>104</strong></div>
+        <div class="mini-stat"><span>Transaction mappings</span><strong>601</strong></div>
+        <div class="mini-stat"><span>Application mappings</span><strong>172</strong></div>
+      </div>
+    </div>
+
+    <div class="sidebar-section" id="mappingStats" style="display:none">
+      <div class="sidebar-label">Current Run</div>
+      <div class="mini-stats">
+        <div class="mini-stat"><span>Exact match</span><strong id="sExact">—</strong></div>
+        <div class="mini-stat"><span>Fuzzy match</span><strong id="sFuzzy">—</strong></div>
+        <div class="mini-stat"><span>AI inferred</span><strong id="sAI">—</strong></div>
+        <div class="mini-stat"><span>Unmapped</span><strong id="sNone">—</strong></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- Step 1: Upload -->
+    <div class="step-panel active" id="step1">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Upload client data file</span>
+          <span class="text-muted">CSV or Excel (.xlsx, .xls)</span>
+        </div>
+        <div class="panel-body">
+          <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()" ondragover="handleDrag(event)" ondrop="handleDrop(event)" ondragleave="this.classList.remove('drag')">
+            <div class="upload-icon">📂</div>
+            <div class="upload-title">Drop file here or click to browse</div>
+            <div class="upload-sub">CSV, XLSX, or XLS — the AI will read actual values to improve mapping accuracy</div>
+          </div>
+          <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" onchange="handleFile(this.files[0])">
+          <div id="fileInfoWrap" style="display:none" class="mt-12">
+            <div class="file-info">
+              <div>
+                <div class="file-name" id="fileName">—</div>
+                <div class="file-meta" id="fileMeta">—</div>
+              </div>
+              <button class="btn btn-sm btn-ghost" onclick="clearFile()">✕ Clear</button>
+            </div>
+          </div>
+          <div id="previewWrap" style="display:none" class="mt-12">
+            <div class="text-muted mt-4" style="margin-bottom:8px">Preview — first 5 rows</div>
+            <div class="table-wrap" id="previewTable"></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">Client name</span></div>
+        <div class="panel-body">
+          <input type="text" id="clientNameInput" placeholder="e.g. comfi, payzen, tala"
+            style="width:100%;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius);padding:9px 12px;font-family:monospace;font-size:13px;color:var(--text);outline:none;transition:border-color .15s;box-shadow:var(--shadow);"
+            oninput="state.clientName=this.value.toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_')"
+            onfocus="this.style.borderColor='var(--orange)'" onblur="this.style.borderColor='var(--border)'">
+          <div style="font-size:11px;color:var(--muted);margin-top:6px">Used as dbt schema, tags, and model filename</div>
+        </div>
+      </div>
+      <div class="flex gap-8">
+        <button class="btn btn-accent" onclick="validateAndContinue()" id="continueBtn1" disabled>Continue →</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Review mappings -->
+    <div class="step-panel" id="step2">
+      <div id="loadingPanel" class="panel" style="display:none">
+        <div class="panel-body">
+          <div class="loading-bar"><div class="loading-bar-fill" id="loadBar" style="width:5%"></div></div>
+          <div class="loading-msg"><div class="spinner"></div><span id="loadMsg">Starting...</span></div>
+        </div>
+      </div>
+      <div id="mappingPanel" style="display:none">
+        <div class="panel">
+          <div class="filter-tabs">
+            <button class="ftab active" onclick="filterMappings('all',this)">All <span class="ftab-count" id="fc-all">0</span></button>
+            <button class="ftab" onclick="filterMappings('review',this)">Needs review <span class="ftab-count" id="fc-review">0</span></button>
+            <button class="ftab" onclick="filterMappings('unmapped',this)">Unmapped <span class="ftab-count" id="fc-unmapped">0</span></button>
+          </div>
+          <div style="display:grid;grid-template-columns:200px 30px 1fr 110px 28px;gap:8px;padding:8px 14px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)">
+            <span>Source column</span><span></span><span>Target field</span><span>Confidence</span><span></span>
+          </div>
+          <div id="mappingRows"></div>
+        </div>
+        <div class="flex gap-8 mt-12" style="margin-top:12px">
+          <button class="btn btn-ghost" onclick="goToStep(2)">← Back</button>
+          <button class="btn btn-accent" onclick="goToStep(3)">Generate SQL →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Export -->
+    <div class="step-panel" id="step3">
+      <div id="genLoadingPanel" class="panel" style="display:none">
+        <div class="panel-body">
+          <div class="loading-bar"><div class="loading-bar-fill" id="genBar" style="width:8%"></div></div>
+          <div class="loading-msg"><div class="spinner"></div><span id="genMsg">Generating dbt model...</span></div>
+        </div>
+      </div>
+      <div id="outputPanel" style="display:none">
+        <div class="flex gap-8" style="margin-bottom:12px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+          <div class="out-tabs" id="outTabs">
+            <!-- populated dynamically -->
+          </div>
+          <button class="btn btn-accent btn-sm" onclick="downloadSQL()">⬇ Download SQL</button>
+        </div>
+        <div class="alert alert-warn" style="margin-bottom:12px">
+          ⚠️ Review all generated SQL before using. Status normalization and custom calculations may need adjustment.
+        </div>
+        <div class="code-wrap">
+          <button class="copy-btn" onclick="copyOutput()">Copy</button>
+          <pre id="outputCode">-- loading...</pre>
+        </div>
+        <div class="flex gap-8" style="margin-top:12px">
+          <button class="btn btn-ghost" onclick="goToStep(2)">← Back</button>
+        </div>
+      </div>
+
+      <!-- Summary Section -->
+      <div id="summaryPanel" style="display:none; margin-top:2rem">
+        <div class="sec-divider">
+          <div class="sec-title">Portfolio Summary</div>
+          <div class="sec-pill">engineers & account managers</div>
+          <div style="margin-left:auto">
+            <button class="btn btn-accent btn-sm" onclick="downloadSummary()">⬇ Download summary</button>
+          </div>
+        </div>
+        <div id="summaryMetrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:1.5rem"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.5rem">
+          <div class="panel"><div class="panel-header"><span class="panel-title">Loan status</span></div><div class="panel-body" id="statusChart" style="min-height:140px"></div></div>
+          <div class="panel"><div class="panel-header"><span class="panel-title">Payment frequency</span></div><div class="panel-body" id="freqChart" style="min-height:140px"></div></div>
+        </div>
+        <div class="panel" style="margin-bottom:1.5rem">
+          <div class="panel-header"><span class="panel-title">Product types</span></div>
+          <div class="panel-body" id="productChart" style="min-height:80px"></div>
+        </div>
+        <div class="panel" style="margin-bottom:1.5rem">
+          <div class="panel-header">
+            <span class="panel-title">AI analysis</span>
+            <span id="narrativeSpinner" class="spinner" style="display:none"></span>
+          </div>
+          <div class="panel-body">
+            <div id="narrativeText" style="font-size:13px;line-height:1.9;color:var(--text)">Generating analysis…</div>
+          </div>
+        </div>
+        <div class="panel" style="margin-bottom:1.5rem">
+          <div class="panel-header">
+            <span class="panel-title">Field mapping summary</span>
+            <span style="font-size:12px;color:var(--muted)">plain English</span>
+          </div>
+          <div style="padding:0">
+            <table style="width:100%">
+              <thead><tr>
+                <th>Client calls it</th><th>Cascade field</th><th>What it means</th><th>Sample values</th><th>Match</th>
+              </tr></thead>
+              <tbody id="mappingSummaryBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">Data quality flags</span></div>
+          <div class="panel-body" id="qualityBody"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+// ============================================================
+// KNOWLEDGE BASE (119 clients, 1128 mappings)
+// ============================================================
+const KB = {"loans":{"term_raw":["term","loanterm","totaldays","original_term","contract_receipt_period_in_weeks","origterm","plazo","tenure","days_loan_maturity","term_est_days","tenor_length_day","term_length_years","number_of_payments","dias_cobro","contractperiod","term_days","latest_plan_term_months","initial_term","original_term_months","contract_term","orig_term","basefields_orig_term","terms","total_term","offer_term_months","est_tenor_days","offer_term","periodicity_in_months","repayment_timeline","loan_term","maturitydays"],"application_id":["loan_id_raw","tenanyrefnum","loan_id"],"loan_status_raw":["loan_status","status","transaction_status","payment_status","memo","loan_stage","account_status_desc","receivable_status","pstatus","clasificacion_mora","state","investment_status","account_status","estatus","fundsuite_status_c","agreement_status","contract_type","activeaccount","loan_status_viola","basefields_loan_status_viola","closed_reason","plan_status","loan_type","current_loan_status","current_status","advance_status","days_past_due_category_clean","application_status","delinquency"],"loan_ccy":["loan_currency","receivable_currency","productcurrency","currency","offer_currency","currency_code","moneda","agreement_value_currency","basefields_receivable_currency","reserve_amount_currency","advance_ccy"],"customer_id_raw":["customer_id","company_id","borrower_id","carrier_id","user_public_id","borrower_obligor_name","company_business_id","acct","student_id","debiteur","cod_clie","user_id","merchant_id","customernumber","business_id","customerid","id_ce","fundsuite_payer_c","fundsuite_account_c","company_number","client_id","customer_name","customer_id_driver_id","org_id","basefields_org_id","pzapplicantid","client","debtor_company_id","buyerid","obligor_id","nombre_cliente","memberaccountid","id_cliente","cust_id","employer_id","branch","recipientid"],"disburse_date_raw":["disbursement_date","disburse_date","application_date","begin_date","startdate","loan_disbursal_date","invoice_date","disbursedat","vintage","assignment_date","financed_date","finance_date","contract_date","origination_date","created_at","close_date","fecha_inicio","disbursed_date","fec_ini","funded_on","subscription_started_at","disbursal_date","term_start","investment_date","fundingdate","funded_date","contracttenancystartdate","fundsuite_funded_date_c","loandate","agreement_issued_date","disbursement_date_first_assignment_date","funding_date","orig_date","basefields_orig_date","approval_date","settlement_date","advance_date","restructure_date","date_fulfilled","inicio3","fundedat","start_at","loan_contract_date","fecha_firma","account_open_date","loan_date","issuedate"],"loan_id_raw":["loan_id","banking_account_id","application_id","loan_id_raw","id","invoice_id","loanid","deal_id","transaction_id","account_public_id","loan_vat","invoice_key","buyer_id","climb_loan_ref","accountnumber","receivable_id","code_pret","unique_deal_number","cod_cred","credit_code","subscription_id","obligor_id","investment_id","draw_request_id","issued_product_id","seller_name","uuid","tenancyid","fundsuite_agreement_c","contract_number","loan_id_driver_id","basefields_loan_id","agreement","advance_id","loan","invoicexcel_id","loan_id_unique","new_loan_id","key","no_contrato","account","tmo_account","contrato_num","installment_id","loan_number","account_id","id_loan","reimbursement_notice_id","unique_id","cash_advance_application_id","user_id"],"product_type_raw":["product_type","product","structurecode","transaction_type","loan_type","product_line","productname","producto_id","loan_product","tag","dealer_program","product_name","property_type","producttype","schedule_type","agreement_product_type","asset_type","prodtype","basefields_general_prodtype","loantype","card_program_name"],"dpd_raw":["days_in_default","DacionPago","dpd_raw","days_past_due","days_late","overdue_days","days_past_due_date","dpd","dayspastdue","default_days","mora_dias","loan_dpd","daysdelinquent","dq_days","basefields_dq_days","days_delinquent","subscription_days_past_due","loan_ageing"],"interest_rate_raw":["interest_rate_apr","interest_rate","loaneffectiveinterestrate","effective_interest_rate","interestrate","tir","royalty_rate","repayment_rate","apr","annual_nominal_interest_rate","taux_d_interet","tasa_anual","tasa","total_interest_rate","factor_rate","monthly_current_interest","interest_rate_annum","contractrate","cat","intrest_rate","base_apr","fundsuite_sell_rate_c","initial_apr","yield","initial_interest_rate","globalapr","apr_pct","basefields_apr","participant_discount_rate","discount","planned_apr","interest_rate_p_a","discount_rate","tasa_credito","applicable_apr"],"total_interest_raw":["interest","original_luxco_fee","amortissement_pret","financing_margin_excl_vat","current_points"],"maturity_date_raw":["maturity_date","expirydate","due_date","maturity","maturite_pret","fec_fin","expiration_date","subscription_ended_at","term_end","maturitydate","contracttenancyenddate","end_date","maturity_date_expected","term","basefields_maturity_date","expected_due_date","term_end_date","expected_payoff_date","nvo_termino","end_at","maturity_date_date","expected_date"],"rpb_raw":["principal_outstanding_balance","current_balance","principal_remaining","SaldoInsoluto","rpb_raw","capitalbalance","invoice_balance","balance","pendingcapital","total_outstanding_amount","unpaid_commitments","unpaid_principal_balance","original_outstanding_financed_amount","outstanding_rtr","principal_balance","balance_principal","total_outstanding_balance","saldo_actual","outstanding_principal","outstanding_balance","outstanding_principal_balance","outstanding","loan_principal_outstanding_lcl_amt","principal_outstanding","currentbalance","net_principal_balance","current_balance_curr_c","current_principal_outstanding","total_outstanding_balance_raw","currupb","basefields_curr_upb","principal_unpaid","current_balance_principal","susbcription_balance","actual","outstandingbalance","amount_due_outstanding","principal_os","olb_princ","balance_remain"],"credit_limit":["line_of_credit","credit_limit_raw"],"interest_rate":["annual_interest_rate","tasaIva","interest_rate_raw","offer_total_cost","term_days","_interest_rate","total_due","monthly_interest_rate"],"disburse_amount_raw":["disbursed_amount","total_loan_amount","totalprinciplevalue","loan_amount","amount","capital","total_advance_amount","purchase_price","disbursement_vat_amount","loan_vat_amount","disposition","original_amount","original_financed_amount","purchased_amount","original_loan_amount","offer_loan_amount","original_loan_balance","asset_value_usd","saldo_inicial","payout_amount","monto_fin","disbursement_amount","funded_amount","disburse_amount","loan_origination_lcl_amt","investment_amount","advance_amount","original_amount_financed","importe_a_entregar","contractvalue","priciple_amount","principal_amount","contract_original_nbv","total_principal","loan_initial_advance_amount","amount_drawn_to_date","orig_balance","basefields_orig_balance","amount_financed","participant_purchase_price","disburse_principal","disbursement_amount_raw","inicial","disbursement_amount_hk","fundingamount","amount_paid_to_supplier","actual_amount_funded_to_schools","monto_credito","funding_amount","ewa_amount","loanamount"],"credit_score":["score","applicable_fico_at_underwriting","credit_score_c","credit_bureau_score","external_credit_score","fico"],"total_tax_raw":["tax","iva"],"total_fees_raw":["merchant_fee","admin_fee_amount","fee_origin","admin_fee"],"credit_limit_raw":["borrower_credit_limit","creditlimit","credit_limit"],"status_effective_date_raw":["reportdate","write_off_date"],"disburse_amount":["disbursed_amount","to_principal","application_amount"]},"customers":{"customer_id_raw":["customer_id","_customer_id_raw","company_id","id","borrower_id","carrier_id","userid","user_public_id","clave_de_cliente","buyer_id","borrower_obligor_name","climb_loan_ref","company_business_id","acct","student_id","debiteur","cod_clie","user_id","merchant_id","obligor_id","investment_id","customernumber","business_id","customerid","id_ce","fundsuite_payer_c","company_number","client_id","customer_name","customer_id_driver_id","loan_id","accountnumber","org_id","basefields_org_id","agreement","pzapplicantid","client","debtor_company_id","buyerid","nombre_cliente","memberaccountid","id_cliente","account","cust_id","id_loan","employer_id","branch","recipientid"],"industry_raw":["industry","gics_industry","business_industry","seller_industry","industry_specific","company_industry_name","borrower_industry","naics_description_c","industry_type","sector"],"geo_city_raw":["location_city","geo_city","company_city","borrower_city_name","city","geography_city","buyer_city"],"income_ccy":["income_ccy","currency","income_currencya","income_currency"],"geo_state_raw":["geo_state","us_state","addr_state","location_state_province","state_province","geography_state","buyer_state","geography_province"],"income_revenue":["income_revenue","income"],"customer_type":["customer_type"],"dependents":["dependents","number_of_dependents"],"geo_country":["borrower_location","alpha3","buyer_country","company_country","country","country_code","location_country","geography_country","country_name"],"birth_date_raw":["date_of_birth","fecha_nacimiento","birth_year","business_year_founded","formation_date","date_founded","dob"],"gender_raw":["sexo","gender"],"channel_type_raw":["channel","customer_type","distribution_channel"],"credit_score":["vantagescore"]},"transactions":{"loan_id_raw":["loan_id","application_id","agreement_id_raw","id","loan_id_raw","dealref","idxdeal","invoice_id","loanid","deal_id","transaction_id","account_public_id","loan_vat","no_de_credito","id_contrato","invoice_key","buyer_id","climb_loan_ref","accountnumber","receivable_id","loanId","contract_id","loan","code_pret","unique_deal_number","cod_cred","codigo_credito","old_loan_id_raw","new_loan_id_raw","instafin_loan_id","offer_id","subscription_id","obligor_id","investment_id","draw_request_id","issued_product_id","seller_name","uuid","tenancyid","tenancy_c","tenancyId","fundsuite_agreement_c","contract_number","lease_number","original_lease_number","new_loan_id","customer_id","driver_id","loan_ida","restructure_to_loan_id","basefields_loan_id","agreement","advance_id","invoicexcel_id","loan_id_unique","key","no_contrato","plan_instance_id","account","loanaccount","tmo_account","global_credit_application_id","contrato_num","dealid","loan_number","loan_account","account_id","id_loan","reimbursement_notice_id","unique_id","uniqueid","cash_advance_application_id","payoutid","user_id","zolve_user_id"],"transaction_ccy":["loan_currency","currency","true_payment_currency","receivable_currency","payment_currency","loan_ccy","orig_loan_ccy","currency_code","moneda","purchase_currency","basefields_receivable_currency","transaction_ccy"],"transaction_date_raw":["disbursement_date_clean","payment_date","true_payment_date","transaction_date","disbursement_date","disburse_date","due_date","date_due","settled_date","restructure_date","new_loan_disburse_date","transaction_date_raw","valuedate","disburse_date_raw","movementat","disbursedat","duedateat","extensionat","duedate","paymentdate","maturity","installment_expected_date","writeoff_date","assignment_date","transaction_time_et","date_of_pik_recovery_sale","fecha_pago_real","fecha_pago_teorico","maturity_date_raw","finance_date","date_paid","posted_dt_","effective_date","business_date","laststatementdate","chargeoffdate","payment_date_original","created_at","created_at_ts","schedule_date","opendate","wo_date","new_loan_date","fecha_inicio","fecha_vencimiento","fecha_recaudo","written_off_date","completed_date","fec_ini","fecha_pago","new_receivable_date","funded_on","subscription_started_at","subscription_ended_at","accrued_at","posted_at","installment_payment_deadline_lcl_ts","term_start","disbursed_date","settlement_date","expiration_date","monthenddate","charge_off_date","origination_date","settled_transaction_date","expected_maturity_date","effectivedate","trans_date","date_vehicle_is_repossessed","fecha_fondeo","fecha_normalizado","cancelleddate","begin_date","maturity_date","loan_end_date","payment_system_paid_date","repayment_date","loandate","effective_at","write_off_date","payment_schedule_date","agreement_issued_date","actual_payment_date","scheduled_payment_date","first_assignment_date","week","second_assignment_date","funding_date","cycleend","frozendate","last_payment_date","reschedule_date","resolution_date","charge_off_date_viola","basefields_orig_date","basefields_charge_off_date_viola","basefields_maturity_date","recovery_date","dates","write_off_date_raw","updated_at","expected_due_date","actual_repayment_date","date_of_receipt_as_per_bank","date_fulfilled","value_date","exp_date","default_date","fundedat","start_at","paid_at","end_at","funded_date","date_debited","daterec","fecha_firma","fecha","start_date","disbursement_timestamp","created","daterepaid","schedulepaymentdate","date_repaid","schedule_payment_date","contract_date","actual_date","expected_date","min_disbursed_date","expected_repayment_date","loan_date","payment_date_time","loan_trans_date","credit_card_created_time","transaction_from_date","transaction_till_date","txn_date"],"to_principal_raw":["disbursement_amount","principal_payment","true_principal_payment","to_principal","amount_to_principal","disbursed_amount","principal_amount","to_principal_base","transaction_amount","capitalamount","disburse_amount_raw","amount","principal","capital","base_ppmt","ppmt","disburse_principal","pago_capital_teorico","disposition","total_collections","original_financed_amount","purchased_amount","principal_paid","principal_balance","offer_loan_amount","principal_diff","starting_balance_raw","saldo_inicial","capital_cuota","outstanding_principal","capital_inicial","disburse_amount","principal_due","inst_principal_expected_lcl_amt","principal_paid_raw","disbursed_principal","investment_amount","principal_amt","loan_amount","payment_schedule_principal_amount","payment_item_principal_amount","total_principal","actual_payment_principal","scheduled_payment_principal","loan_initial_advance_amount","orig_balance","basefields_orig_balance","Disburse_amount","participant_purchase_price","disbursement_amount_raw","principal_repayment","fundingamount","to_principal_raw","toprincipal","monto_credito","pago_principal","paid_principal"],"total_amount":["to_principal","to_tax","disbursed_amount","to_fees","origination_fee","to_other","to_interest","disburse_principal","original_amount_due","transaction_amount","outstanding_balance","interest_payment","to_principal_raw","principal_paid","tax_due","tax_paid","disburse_amount","total_disbursed","payment","total_txn_amount","amount_due","disburse_amount_raw","payment_amount","present_value","interest","lumpsum_payment","true_other_payment","monthly_repayment","amount","sched_amount"],"to_interest_raw":["interest_payment","true_interest_payment","to_interest","interest_amount","to_interest_base","interestamount","interest","ipmt","interest_paid","interes_cuota","interes","pago_de_intereses","interest_due","inst_interest_expected_lcl_amt","interest_paid_raw","payment_schedule_interest_amount","payment_item_interest_amount","actual_payment_interest","scheduled_payment_interest","tointerest","pago_interes","intereses","interest_repayment","paid_interest","interestpaid"],"to_fees_raw":["fee_payment","true_fee_payment","to_fees","origination_fee","fee_amount","to_fees_base","origination_fee_value","commission_amount","commission","merchant_fee","fee_amount_raw","origin_fee_raw","late_fees_paid","fees_payment","late_fees","admin_fee_amount","disbursement_fees_amount","fees_due","late_fee_paid","fees_paid","mdr_fee","comision","fees_amount","payment_schedule_fee_amount","payment_item_fee_amount","origination_fees","origin_fee","service_fee","fee","origin_fees_raw","fee_origin","paid_late_fee","feeamount","membership_fee"],"to_other_raw":["other_payment","true_other_payment","to_other","transaction_amount","other","nsf_fees_paid","penalty_payment","interes_mora","penalty_amount","late_interest_paid","broker_fee","payment_schedule_other_amount","payment_item_other_amount","actual_payment_other","scheduled_payment_other","true_late_fee","late_fee","collateral_downpayment","overdue_charges","penaltyamount","disbursement_fee"],"to_tax_raw":["tax_payment","true_tax_payment","to_tax","to_tax_base","taxamount","tax","admin_fee_vat_amount","sales_tax_paid","iva_c","payment_item_vat_amount","origin_fee_tax","pago_iva","iva"],"transaction_id_raw":["transaction_id","schedule_date","loan_id_raw","disburse_date","checksum","creditormovementid","historic_real_payment_id","payment_schedule_id","id","tranid","payment_id","due_date","transaction_date","installment_id","unique_id","funded_on","schedule_id","subscription_id","installment","date_paid","loan_id","paymentid","instalment_id","transaction_id_raw","disbursement_id","payment_checksum","agreement","line_item_id","sr_no","recid","repayment_schedule_id","account","tid"],"transaction_status_raw":["transaction_type_id","true_payment_status","payment_status","logicmodule","transactioncode","transaction_status","fundsuite_status_c","write_off_status"],"reduce_balance":["restructured_amount","principal_outstanding","principal_amount","written_off_amount","transfer_loan_amount","principal_balance","outstanding_principal_balance","principal_written_off","balance","to_principal_raw","writeoff_amount","outstanding"],"add_balance":["new_loan_principal_add_balance","interest_capitalized","principal_amount","transfer_loan_amount","disbursed_amount_gross","outstanding_principal_balance","disbursed_amount","outstanding"],"frequency_type":["loan_frequency","tenure_unit","payment_frequency","frequency"],"installment":["period","installment_number","installment_num","instalment_number","rn","payment_number","term","statement_number"]},"applications":{"application_id":["receivable_id","loan_id","banking_account_id","id","deal_id","loan_vat","no_de_credito","unique_deal_number","cod_cred","offer_id","account_public_id","invoice_id","subscription_id","advance_id","application_id","loan_id_raw","agreement_id","credit_application_id","aplicacion_id","contract_number","uuid"],"loan_id_raw":["loan_id","receivable_id","banking_account_id","application_id","invoice_id","transaction_id","account_public_id","loan_vat","invoice_key","buyer_id","deal_id","advance_id","agreement_id","subscription_id","no_de_credito","contract_number","uuid","loanid","loan_number","credit_code"],"customer_id_raw":["customer_id","company_id","id","carrier_id","user_public_id","clave_de_cliente","buyer_id","borrower_obligor_name","businessId","acct","client_id","borrower_id","user_id","org_id","merchant_id","business_id","payer_id","obligor_id","customerid","customernumber","debtor_id","borrower_id_raw"],"application_date":["disbursement_date","begin_date","assignment_date","contract_date","origination_date","disburse_date","created_at","funded_on","funding_date","funded_date","start_date","invoice_date","application_date","date_of_application","subscription_started_at","loan_date","agreement_issued_date","disbursed_date","issue_date","financed_date","approval_date","startdate","disbursedat"]}};
+const LOAN_STATUS_MAP = {"Complete":"FINISHED","Current":"OPEN","Default":"LATE","0":"FINISHED","Default with removals":"LATE",", ":"Not Provided","Fully paid":"FINISHED","Refinanced":"REFINANCED","Charged Off":"WRITTEN-OFF","Good standing":"OPEN","Late":"LATE","Penalty Status":"LATE","active":"OPEN","late":"LATE","resolved":"FINISHED","Paid":"FINISHED","Overdue":"LATE","CLOSED":"FINISHED","DEFAULT":"LATE","ACTIVE":"OPEN","default":"LATE","current":"OPEN","completed":"FINISHED","PAID_OFF":"FINISHED","SET-ONGOING":"OPEN","SET-COMPLETE":"FINISHED","SET-DEFAULT":"WRITTEN-OFF","PASTDUE":"LATE","EXPIRED":"LATE","Active":"OPEN","Closed":"FINISHED","Open, Zero Balance":"FINISHED","FULLY_PAID":"FINISHED","CURRENT":"OPEN","DEFAULTED":"LATE","LATE":"LATE","REFINANCED":"REFINANCED","Viva":"OPEN","Pendiente":"OPEN","Pagada":"FINISHED","paid_off":"FINISHED","defaulted":"LATE","Recredited":"RESTRUCTURED","Terminated":"FINISHED","WRITTEN_OFF":"WRITTEN-OFF","ONTIME":"OPEN","PAID":"FINISHED","Inactive":"FINISHED","Delinquent":"LATE","Past Due":"LATE","ADJUSTED_CLOSED":"FINISHED","CHARGED_OFF":"WRITTEN-OFF","DELINQUENT":"LATE","GRACE_PERIOD":"LATE","Completed":"FINISHED","Repaid":"FINISHED","funded":"OPEN","collection":"OPEN","complete":"FINISHED","refinanced":"REFINANCED","restructured":"RESTRUCTURED","a. Current":"OPEN","Paid in Full":"FINISHED","Written Off":"WRITTEN-OFF","Bankruptcy":"WRITTEN-OFF","Blocked":"BLOCKED","BLOCKED":"BLOCKED","blocked":"BLOCKED","Recovered":"RECOVERED","RECOVERED":"RECOVERED","recovered":"RECOVERED","Recovery":"RECOVERED","Written-Off":"WRITTEN-OFF","write-off":"WRITTEN-OFF","Write-Off":"WRITTEN-OFF","WRITE-OFF":"WRITTEN-OFF","NON-PERFORMING":"LATE","Non-performing":"LATE","Performing":"OPEN","performing":"OPEN","NPA":"LATE"};
+
+// ============================================================
+// STATE
+// ============================================================
+let state = {
+  currentStep: 1,
+  currentEntity: 'applications',
+  fileData: null,       // { name, rows: [[]], headers: [] }
+  selectedCols: new Set(),
+  mappings: [],         // { source, target, method, conf, sampleValues }
+  generatedSQL: {},     // { loans: '', customers: '', transactions: '', json: '' }
+  clientName: '',
+  filterTab: 'all'
+};
+
+// ============================================================
+// API KEY
+// ============================================================
+function updateApiStatus() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  const dot = document.getElementById('apiDot');
+  const txt = document.getElementById('apiStatusText');
+  if (key.startsWith('sk-ant')) {
+    dot.classList.add('ok');
+    txt.textContent = 'key set';
+  } else {
+    dot.classList.remove('ok');
+    txt.textContent = key ? 'invalid key format' : 'no api key';
+  }
+}
+
+function toggleApiVis() {
+  const inp = document.getElementById('apiKeyInput');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+function getApiKey() { 
+  const input = document.getElementById('apiKeyInput').value.trim();
+  return input || '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';
+}
+
+async function callClaude(prompt, systemPrompt = '') {
+  const key = getApiKey();
+  if (!key) throw new Error('No API key set. Add your Anthropic API key in the sidebar.');
+  const body = {
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 4000,
+    messages: [{ role: 'user', content: prompt }]
+  };
+  if (systemPrompt) body.system = systemPrompt;
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API error ${res.status}`);
+  }
+  const data = await res.json();
+  return data.content.map(b => b.text || '').join('');
+}
+
+// ============================================================
+// FILE HANDLING
+// ============================================================
+function handleDrag(e) { e.preventDefault(); document.getElementById('uploadZone').classList.add('drag'); }
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('uploadZone').classList.remove('drag');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+}
+
+function handleFile(file) {
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      let allRows, headers;
+      if (ext === 'csv') {
+        const text = e.target.result;
+        const lines = text.split('\n').filter(l => l.trim());
+        headers = parseCSVLine(lines[0]);
+        allRows = lines.slice(1).map(l => parseCSVLine(l));
+      } else {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        headers = data[0].map(h => String(h));
+        allRows = data.slice(1).map(r => headers.map((_, i) => String(r[i] || '')));
+      }
+      const rows = allRows.slice(0, 5); // preview only
+      state.fileData = { name: file.name, headers, rows, allRows };
+      state.clientName = file.name.replace(/\.[^.]+$/, '').toLowerCase().replace(/[^a-z0-9]/g, '_');
+      const cnInput = document.getElementById('clientNameInput');
+      if (cnInput && !cnInput.value) {
+        cnInput.value = state.clientName;
+      }
+      state.selectedCols = new Set(headers);
+      showFileInfo(file, headers.length, allRows.length);
+      showPreview(headers, rows);
+      document.getElementById('continueBtn1').disabled = false;
+    } catch(err) {
+      alert('Could not parse file: ' + err.message);
+    }
+  };
+  if (ext === 'csv') reader.readAsText(file);
+  else reader.readAsArrayBuffer(file);
+}
+
+function parseCSVLine(line) {
+  const result = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') { inQ = !inQ; }
+    else if (line[i] === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
+    else cur += line[i];
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function showFileInfo(file, cols, rows) {
+  document.getElementById('fileInfoWrap').style.display = 'block';
+  document.getElementById('fileName').textContent = file.name;
+  document.getElementById('fileMeta').textContent = `${cols} columns · ~${rows} rows shown`;
+}
+
+function showPreview(headers, rows) {
+  const wrap = document.getElementById('previewWrap');
+  wrap.style.display = 'block';
+  const table = document.getElementById('previewTable');
+  const ths = headers.map(h => `<th>${escHtml(h)}</th>`).join('');
+  const trs = rows.map(row => `<tr>${row.map(c => `<td>${escHtml(String(c).slice(0,50))}</td>`).join('')}</tr>`).join('');
+  table.innerHTML = `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+}
+
+function clearFile() {
+  state.fileData = null; state.selectedCols = new Set();
+  document.getElementById('fileInfoWrap').style.display = 'none';
+  document.getElementById('previewWrap').style.display = 'none';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('continueBtn1').disabled = true;
+}
+
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ============================================================
+// STEP NAVIGATION
+// ============================================================
+function goToStep(n) {
+  if (n > 1 && !state.fileData) { alert('Please upload a file first.'); return; }
+  if (n === 2 && state.mappings.length === 0) { runMapping(); return; }
+  if (n === 3) { generateSQL(); return; }
+  state.currentStep = n;
+  renderStep(n);
+}
+
+function renderStep(n) {
+  [1,2,3].forEach(i => {
+    document.getElementById('step'+i).classList.toggle('active', i === n);
+    const nav = document.getElementById('nav'+i);
+    if (!nav) return;
+    nav.classList.remove('active','done');
+    if (i === n) nav.classList.add('active');
+    else if (i < n) nav.classList.add('done');
+    const snum = document.getElementById('snum'+i);
+    if (snum) snum.textContent = i < n ? '✓' : i;
+  });
+}
+
+// ============================================================
+// STEP 2: Column selector
+// ============================================================
+function renderColGrid() {
+  const grid = document.getElementById('colGrid');
+  grid.innerHTML = state.fileData.headers.map(h => {
+    const sel = state.selectedCols.has(h);
+    return `<div class="col-chip ${sel ? 'selected' : ''}" onclick="toggleCol('${escHtml(h)}', this)">
+      <div class="chip-dot"></div>${escHtml(h)}
+    </div>`;
+  }).join('');
+}
+
+function toggleCol(col, el) {
+  if (state.selectedCols.has(col)) { state.selectedCols.delete(col); el.classList.remove('selected'); }
+  else { state.selectedCols.add(col); el.classList.add('selected'); }
+}
+
+function selectAll() { state.selectedCols = new Set(state.fileData.headers); renderColGrid(); }
+function clearAll() { state.selectedCols.clear(); renderColGrid(); }
+function setEntity(e, btn) {
+  state.currentEntity = e;
+  document.querySelectorAll('.etab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ============================================================
+// MAPPING ENGINE
+// ============================================================
+// Semantic conflict rules — prevent fee columns mapping to rate fields etc.
+const CONFLICT_RULES = [
+  { srcTokens: ['fee', 'fees', 'origination', 'commission', 'charge'], blockedTargets: ['interest_rate', 'interest_rate_raw', 'loan_status_raw', 'frequency_type'] },
+  { srcTokens: ['interest'], blockedTargets: ['to_fees_raw', 'to_fees', 'credit_limit', 'loan_status_raw', 'frequency_type'] },
+  { srcTokens: ['balance', 'outstanding', 'upb', 'principal'], blockedTargets: ['interest_rate', 'interest_rate_raw', 'dpd_raw', 'loan_status_raw', 'frequency_type'] },
+  { srcTokens: ['date', 'dt', 'time'], blockedTargets: ['interest_rate', 'interest_rate_raw', 'loan_ccy', 'loan_status_raw', 'frequency_type'] },
+  { srcTokens: ['status', 'state', 'stage', 'estatus'], blockedTargets: ['interest_rate', 'interest_rate_raw', 'loan_ccy', 'dpd_raw', 'rpb_raw', 'frequency_type'] },
+  { srcTokens: ['currency', 'ccy', 'moneda'], blockedTargets: ['interest_rate', 'interest_rate_raw', 'loan_status_raw', 'dpd_raw', 'frequency_type'] },
+  { srcTokens: ['frequency', 'freq', 'periodicity', 'schedule'], blockedTargets: ['loan_status_raw', 'interest_rate', 'interest_rate_raw', 'dpd_raw', 'rpb_raw', 'loan_ccy'] },
+  { srcTokens: ['payment', 'pay'], blockedTargets: ['loan_status_raw', 'interest_rate', 'interest_rate_raw', 'loan_id_raw', 'customer_id_raw'] },
+  { srcTokens: ['pledge', 'pledged', 'collateral'], blockedTargets: ['disburse_date_raw', 'disburse_amount_raw', 'loan_id_raw', 'customer_id_raw', 'loan_status_raw', 'interest_rate_raw'] },
+];
+
+function isConflicted(srcCol, target) {
+  const tokens = normalize(srcCol).split('_').filter(p => p.length > 1);
+  return CONFLICT_RULES.some(r => r.srcTokens.some(t => tokens.includes(t)) && r.blockedTargets.includes(target));
+}
+
+function normalize(s) {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g,'_').replace(/^_|_$/g,'');
+}
+
+function fuzzyScore(a, b) {
+  a = normalize(a); b = normalize(b);
+  if (a === b) return 1;
+  const ap = a.split('_').filter(p => p.length > 2);
+  const bp = b.split('_').filter(p => p.length > 2);
+  const shared = ap.filter(p => bp.includes(p));
+  if (shared.length > 0) return 0.65 + shared.length * 0.08;
+  if (a.includes(b) || b.includes(a)) return 0.6;
+  return 0;
+}
+
+function lookupKB(srcCol) {
+  const kb = KB[state.currentEntity];
+  const norm = normalize(srcCol);
+
+  // EXACT match — source column is in our known list for this entity's schema
+  for (const [target, sources] of Object.entries(kb)) {
+    if (sources.map(normalize).includes(norm)) {
+      if (isConflicted(srcCol, target)) continue;
+      return { target, method: 'EXACT', conf: 'HIGH' };
+    }
+  }
+
+  // Fuzzy match — only against targets within this entity's schema
+  // Higher threshold for applications to avoid weak matches
+  let best = null, bestScore = 0;
+  for (const [target, sources] of Object.entries(kb)) {
+    if (isConflicted(srcCol, target)) continue;
+    for (const src of sources) {
+      const s = fuzzyScore(srcCol, src);
+      if (s > bestScore) { bestScore = s; best = target; }
+    }
+    const ts = fuzzyScore(srcCol, target);
+    if (ts > bestScore) { bestScore = ts; best = target; }
+  }
+  const threshold = state.currentEntity === 'applications' ? 0.85 : 0.6;
+  if (bestScore >= threshold) return { target: best, method: 'FUZZY', conf: bestScore >= 0.8 ? 'HIGH' : 'MEDIUM' };
+  return null;
+}
+
+function getSampleValues(col) {
+  if (!state.fileData) return [];
+  const idx = state.fileData.headers.indexOf(col);
+  return state.fileData.rows.map(r => r[idx]).filter(v => v && v !== '').slice(0, 5);
+}
+
+async function runMapping() {
+  if (!state.fileData) return;
+  state.currentStep = 2;
+  renderStep(2);
+  document.getElementById('loadingPanel').style.display = 'block';
+  document.getElementById('mappingPanel').style.display = 'none';
+
+  const cols = [...state.selectedCols];
+  const setLoad = (msg, pct) => {
+    document.getElementById('loadMsg').textContent = msg;
+    document.getElementById('loadBar').style.width = pct + '%';
+  };
+
+  setLoad('Checking knowledge base for exact matches…', 15);
+  await sleep(200);
+
+  // Phase 1: KB lookup
+  const kbHits = {}, needsAI = [];
+  for (const col of cols) {
+    const r = lookupKB(col);
+    if (r) kbHits[col] = r;
+    else needsAI.push(col);
+  }
+
+  setLoad(`KB matched ${Object.keys(kbHits).length}/${cols.length} columns. AI analyzing ${needsAI.length} unknowns…`, 40);
+
+  // Phase 2: AI for remaining + sample values context
+  let aiResults = {};
+  if (needsAI.length > 0) {
+    const targets = Object.keys(KB[state.currentEntity]);
+    const colsWithSamples = needsAI.map(col => {
+      const samples = getSampleValues(col);
+      return `"${col}" (sample values: ${samples.length ? samples.join(', ') : 'no data'})`;
+    }).join('\n');
+
+    try {
+      const prompt = `You are a fintech data engineer who has worked on 119 lending companies' data pipelines.
+
+Map each source column to the best matching target field from our canonical schema.
+Use the column name AND sample values to infer the correct mapping.
+
+Source columns with sample data:
+${colsWithSamples}
+
+Target fields for entity "${state.currentEntity}":
+${targets.join(', ')}
+
+Rules:
+- Use sample values to disambiguate (e.g. values like "OPEN","FINISHED","LATE" → loan_status_raw)
+- Use "UNMAPPED" only if no target field is a reasonable match
+- Return ONLY a JSON array, no markdown fences:
+
+[{"source":"col_name","target":"field_or_UNMAPPED","conf":"HIGH|MEDIUM|LOW","reason":"brief reason using sample values"}]`;
+
+      setLoad('AI analyzing column values and semantics…', 65);
+      const text = await callClaude(prompt);
+      const clean = text.replace(/```json|```/g,'').trim();
+      const arr = JSON.parse(clean);
+      arr.forEach(r => { aiResults[r.source] = { target: r.target, method: 'AI', conf: r.conf || 'MEDIUM', reason: r.reason }; });
+    } catch(e) {
+      needsAI.forEach(c => { aiResults[c] = { target: 'UNMAPPED', method: 'AI', conf: 'LOW', reason: e.message }; });
+    }
+  }
+
+  setLoad('Finalizing mappings…', 90);
+  await sleep(200);
+
+  const COMPACT_ENTITIES = ['applications'];
+  const allMappings = cols.map(col => ({
+    source: col,
+    ...(kbHits[col] || aiResults[col] || { target: 'UNMAPPED', method: 'NONE', conf: 'LOW' }),
+    sampleValues: getSampleValues(col)
+  }));
+
+  // For applications: only show EXACT/high-confidence matches
+  let filteredMappings = COMPACT_ENTITIES.includes(state.currentEntity)
+    ? allMappings.filter(m => m.method === 'EXACT' || (m.method === 'AI' && m.target !== 'UNMAPPED'))
+    : allMappings;
+
+  // For applications: if application_id is mapped, automatically add loan_id_raw
+  // using the same source column (they always share the same source)
+  if (state.currentEntity === 'applications') {
+    const appIdMapping = filteredMappings.find(m => m.target === 'application_id');
+    const hasLoanIdRaw = filteredMappings.find(m => m.target === 'loan_id_raw');
+    if (appIdMapping && !hasLoanIdRaw) {
+      filteredMappings = [
+        ...filteredMappings,
+        { source: appIdMapping.source, target: 'loan_id_raw', method: 'EXACT', conf: 'HIGH', sampleValues: appIdMapping.sampleValues, reason: 'Same source as application_id' }
+      ];
+    }
+    // Also ensure application_status is always present as hardcoded APPROVED
+    const hasStatus = filteredMappings.find(m => m.target === 'application_status');
+    if (!hasStatus) {
+      filteredMappings = [
+        ...filteredMappings,
+        { source: "'APPROVED'", target: 'application_status', method: 'EXACT', conf: 'HIGH', sampleValues: ['APPROVED'], reason: 'Always hardcoded APPROVED' }
+      ];
+    }
+  }
+
+  state.mappings = filteredMappings;
+
+  updateSidebarStats();
+  renderMappings(state.filterTab);
+  document.getElementById('mappingStats').style.display = 'block';
+  document.getElementById('loadingPanel').style.display = 'none';
+  document.getElementById('mappingPanel').style.display = 'block';
+  updateFilterCounts();
+  state.currentStep = 2;
+  renderStep(2);
+}
+
+function updateSidebarStats() {
+  document.getElementById('sExact').textContent = state.mappings.filter(m=>m.method==='EXACT').length;
+  document.getElementById('sFuzzy').textContent = state.mappings.filter(m=>m.method==='FUZZY').length;
+  document.getElementById('sAI').textContent = state.mappings.filter(m=>m.method==='AI'&&m.target!=='UNMAPPED').length;
+  document.getElementById('sNone').textContent = state.mappings.filter(m=>m.target==='UNMAPPED').length;
+}
+
+function updateFilterCounts() {
+  document.getElementById('fc-all').textContent = state.mappings.length;
+  document.getElementById('fc-review').textContent = state.mappings.filter(m=>m.method!=='EXACT'&&m.target!=='UNMAPPED').length;
+  document.getElementById('fc-unmapped').textContent = state.mappings.filter(m=>m.target==='UNMAPPED').length;
+}
+
+function filterMappings(tab, el) {
+  state.filterTab = tab;
+  document.querySelectorAll('.ftab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderMappings(tab);
+}
+
+function renderMappings(tab) {
+  let show = state.mappings;
+  if (tab === 'review') show = state.mappings.filter(m=>m.method!=='EXACT'&&m.target!=='UNMAPPED');
+  if (tab === 'unmapped') show = state.mappings.filter(m=>m.target==='UNMAPPED');
+
+  const targets = ['UNMAPPED', ...Object.keys(KB[state.currentEntity])];
+  const rows = document.getElementById('mappingRows');
+  rows.innerHTML = show.map((m, _) => {
+    const gi = state.mappings.indexOf(m);
+    const opts = targets.map(t => `<option value="${t}" ${m.target===t?'selected':''}>${t}</option>`).join('');
+    const badge = m.method==='EXACT' ? '<span class="method-badge badge-exact">EXACT</span>'
+      : m.method==='FUZZY' ? '<span class="method-badge badge-fuzzy">FUZZY</span>'
+      : m.target!=='UNMAPPED' ? '<span class="method-badge badge-ai">AI</span>'
+      : '<span class="method-badge badge-none">—</span>';
+    const tip = m.reason ? ` title="${escHtml(m.reason)}"` : m.sampleValues?.length ? ` title="samples: ${escHtml(m.sampleValues.join(', '))}"` : '';
+    return `<div class="mapping-row">
+      <div class="src-col"${tip}>${escHtml(m.source)}</div>
+      <div class="arrow-col">→</div>
+      <select class="target-select" onchange="updateMapping(${gi}, this.value)">${opts}</select>
+      ${badge}
+      <button class="del-btn" onclick="removeMapping(${gi})" title="Remove">✕</button>
+    </div>`;
+  }).join('') || `<div style="padding:16px;color:var(--muted);font-size:13px">No columns in this view.</div>`;
+}
+
+function updateMapping(idx, val) {
+  state.mappings[idx].target = val;
+  state.mappings[idx].method = 'EXACT';
+  updateSidebarStats();
+  updateFilterCounts();
+}
+
+function removeMapping(idx) {
+  state.mappings.splice(idx, 1);
+  renderMappings(state.filterTab);
+  updateSidebarStats();
+  updateFilterCounts();
+}
+
+// ============================================================
+// STEP 4: SQL Generation
+// ============================================================
+async function generateSQL() {
+  state.currentStep = 3;
+  renderStep(3);
+  document.getElementById('genLoadingPanel').style.display = 'block';
+  document.getElementById('outputPanel').style.display = 'none';
+
+  const setGen = (msg, pct) => {
+    document.getElementById('genMsg').textContent = msg;
+    document.getElementById('genBar').style.width = pct + '%';
+  };
+
+  const entity = state.currentEntity;
+  const client = state.clientName || 'client';
+  const mapped = state.mappings.filter(m => m.target !== 'UNMAPPED');
+
+  // Build context for the AI
+  const mappingList = mapped.map(m => {
+    const samples = m.sampleValues?.length ? ` [samples: ${m.sampleValues.join(', ')}]` : '';
+    return `  ${m.source} → ${m.target}${samples}`;
+  }).join('\n');
+
+  // For status-like columns send ALL distinct values so AI can build complete CASE statement
+  const STATUS_KEYWORDS = ['status','state','stage','estatus','estado','statut'];
+  const allSampleData = state.fileData.headers.map((h, i) => {
+    const allVals = (state.fileData.allRows || state.fileData.rows).map(r => r[i]).filter(v=>v);
+    const isStatusCol = STATUS_KEYWORDS.some(k => h.toLowerCase().includes(k));
+    const vals = isStatusCol
+      ? [...new Set(allVals)]          // all distinct values for status columns
+      : allVals.slice(0,5);            // 5 samples for everything else
+    const label = isStatusCol ? `${h} [ALL DISTINCT VALUES]` : h;
+    return `  ${label}: ${vals.join(' | ')}`;
+  }).join('\n');
+
+  setGen('Generating src_' + entity + ' dbt model…', 25);
+
+  const REFERENCE_APPS = `{{ config(
+        schema='comfi',
+        alias='src__applications',
+        tags=['comfi'],
+        unique_key=['application_id'],
+        post_hook = "{{ optimize(['application_id']) }} "
+) }}
+---
+{%- if execute -%}
+---
+with
+base as (
+    select distinct
+        receivable_id as application_id,
+        receivable_id as loan_id_raw, 
+        customer_id as customer_id_raw,
+        {{ generate_fast_id(['customer_id']) }} as customer_id,
+        disbursement_date as application_date,
+        'APPROVED' as application_status,
+        {{ rank_sync(['receivable_id'], stamp_col='date_of_data', updated_at_raw=True) }},
+        case 
+            when sync_rank = 1 then True
+            else False
+        end as client_inclusion
+    from {{ source('comfi', 'loans') }}
+)
+{{ convert_stage_validation('base', 'applications') }}
+{%- endif -%}`;
+
+  const REFERENCE_MODEL = `--depends_on: {{ ref('src_transactions_comfi') }}
+{{ config(
+        schema='comfi',
+        alias='src__loans',
+        unique_key=['loan_id'],
+        tags=['comfi'],
+        post_hook = "{{ optimize(['loan_id']) }}"
+) }}
+{%- if execute -%}
+---
+with 
+loans_base as (
+    select
+        NULL as associated_loan_raw_id,
+        receivable_id as loan_id_raw,
+        customer_id as customer_id_raw,
+        term as term_raw,
+        receivable_status as loan_status_raw,
+        case
+            when receivable_status = 'Complete' then 'FINISHED'
+            else 'NOT PROVIDED'
+        end as loan_status,
+        receivable_currency as loan_ccy,
+        interest_rate as interest_rate_raw,
+        interest_rate,
+        disbursed_amount as disburse_amount_raw,
+        disbursement_date as disburse_date_raw,
+        product_type as product_type_raw,
+        if(unpaid_principal_balance = '', 0, unpaid_principal_balance::double) as rpb_raw,
+        if(days_in_default = '', 0, days_in_default::double) as dpd_raw,
+        {{ rank_sync(['receivable_id'], stamp_col='date_of_data', updated_at_raw=True) }},
+        case 
+            when sync_rank = 1 then True
+            else False
+        end as client_inclusion,
+        -- extras
+        payment_frequency,
+        pledged_to,
+        pledge_date,
+        credit_score
+    from {{ source('comfi', 'loans') }}
+),
+---
+{%- set nulls = ['collateral_ids', 'origin_agent', 'loan_grade', 'loan_use', 'credit_limit', 'status_effective_date', 'credit_score_type'] -%}
+{%- set reorg_nulls = ['restructure_to', 'restructure_from'] -%}
+{%- set nulls_raw = ['credit_limit_raw', 'status_effective_date_raw', 'maturity_date_raw', 
+                'total_interest_raw', 'total_tax_raw', 'total_fees_raw', 'total_other_raw'] -%}
+---
+loans_ as (
+    select 
+        associated_loan_raw_id,
+        loan_id_raw,
+        loan_id_raw as application_id,
+        {{ generate_fast_id(['loan_id_raw']) }} as loan_id,
+        customer_id_raw,
+        {{ generate_fast_id(['customer_id_raw']) }} as customer_id,
+        term_raw,
+        'INSTALLMENT' as loan_type,
+        'CONSUMER LOANS' as product_type,
+        product_type_raw,
+        credit_score,
+        loan_ccy,
+        loan_status_raw,
+        loan_status,
+        interest_rate_raw,
+        interest_rate,
+        {{ null_block( nulls + reorg_nulls + nulls_raw, 'loans' ) }},
+        disburse_amount_raw,
+        disburse_date_raw,
+        dpd_raw,
+        rpb_raw,
+        updated_at,
+        updated_at_raw,
+        client_inclusion,
+        {# extras #}
+        payment_frequency,
+        pledged_to,
+        pledge_date
+    from loans_base
+),
+
+{%- set extras= ['payment_frequency', 'pledged_to', 'pledge_date'] -%}
+
+final as (
+{{ convert_stage_validation('loans_', 'loans', extras) }}
+),
+{{ get_loan_dates_totals_terms_validation('final', 'INSTALLMENT') }}
+{%- endif -%}`;
+
+  const CASCADE_SCHEMA = "loan_id, loan_id_raw, customer_id, customer_id_raw, application_id, collateral_ids, disburse_date, disburse_date_raw, maturity_date, maturity_date_raw, term, term_raw, loan_type, product_type, product_type_raw, loan_use, loan_status, loan_status_raw, status_effective_date, status_effective_date_raw, origin_agent, loan_grade, credit_score, credit_score_type, credit_limit, credit_limit_raw, loan_ccy, interest_rate, interest_rate_raw, disburse_amount, disburse_amount_raw, total_interest, total_interest_raw, total_fees, total_fees_raw, total_other, total_other_raw, total_tax, total_tax_raw, dpd_raw, rpb_raw, restructure_to, restructure_from, updated_at, updated_at_raw, client_inclusion, associated_loan_raw_id";
+
+  const FIXED_NULLS = `Always use these exact null block sets for schema fields the client does NOT provide:
+{%- set nulls = ['collateral_ids', 'origin_agent', 'loan_grade', 'loan_use', 'credit_limit', 'status_effective_date', 'credit_score_type'] -%}
+{%- set reorg_nulls = ['restructure_to', 'restructure_from'] -%}
+{%- set nulls_raw = ['credit_limit_raw', 'status_effective_date_raw', 'maturity_date_raw', 'total_interest_raw', 'total_tax_raw', 'total_fees_raw', 'total_other_raw'] -%}
+Remove a field from null sets ONLY if the client actually provides it. NEVER put mapped or extra columns in null_block.`;
+
+  const systemPrompt = `You are a senior data engineer at Cascade Finance generating production dbt Spark SQL source models. Follow the reference model structure exactly.
+
+CASCADE LOAN SCHEMA FIELDS: ${CASCADE_SCHEMA}
+
+NULL BLOCK RULES: ${FIXED_NULLS}
+
+KEY RULES:
+- --depends_on must ALWAYS be ref('src_transactions_CLIENT') — never src_loans
+- rank_sync: use loan_id_raw column, stamp_col='date_of_data' (date_of_data added at ingestion, not in raw file)
+- client_inclusion: case when sync_rank = 1 then True else False end
+- loan_status CASE: normalize raw status values to Cascade values using LOAN_STATUS_MAP: ${JSON.stringify(LOAN_STATUS_MAP)}
+  Valid Cascade loan_status values: OPEN, FINISHED, LATE, BLOCKED, WRITTEN-OFF, RECOVERED, RESTRUCTURED, REFINANCED, NOT PROVIDED
+  Build a WHEN clause for EVERY distinct status value seen in the sample data — do not leave any out
+  Use 'NOT PROVIDED' only as the final ELSE fallback
+- EXTRAS: columns NOT in schema with categorical filter value (string categories). Numeric non-schema columns are NOT extras.
+- Source table: infer from context, default to 'loans'
+- term_type and count_type are NOT mapped from source data — they are generated by a macro in the final CTE and must NOT appear in the loans_base or loans_ CTEs, and must NOT be included in the null_block
+
+COLUMN NAME FORMATTING (apply to every source column reference):
+- Convert ALL source column names to lowercase in the SQL
+- Replace any spaces or special characters with underscores (e.g. "Loan Amount" → loan_amount, "interest-rate" → interest_rate)
+- Apply this consistently everywhere the source column is referenced
+
+DATA TYPE RULES (all data arrives as string — must cast explicitly):
+- interest_rate_raw: keep as-is, NO casting, NO division — it is the raw string value from the source
+- interest_rate: cast and transform — if(source_col = '', 0, source_col::double/100) only if values are clearly stored as percentages (e.g. 15.5 meaning 15.5%), otherwise if(source_col = '', 0, source_col::double)
+- rpb_raw: if(col = '', 0, col::double)
+- dpd_raw: if(col = '', 0, col::double)
+- disburse_amount_raw: try_cast(col as double)
+- All other numeric target fields: if(col = '', 0, col::double)
+- Date fields: try_cast(col as date) or leave as string with _raw suffix
+- String/categorical fields (status, currency, product type, _raw fields): NO casting
+- NEVER cast a _raw field — raw fields always stay as the original string
+- NEVER use a numeric non-raw field without casting — all source data is string
+`;
+
+  const prompts = {
+    loans: `Generate src_loans_${client}.sql following the REFERENCE MODEL structure exactly.
+
+Client: ${client}
+
+REFERENCE MODEL (follow this structure exactly, swap in client columns):
+${REFERENCE_MODEL}
+
+THIS CLIENT'S COLUMN MAPPINGS (source → target [sample values]):
+${mappingList}
+
+ALL CLIENT COLUMNS WITH SAMPLES:
+${allSampleData}
+
+RULES:
+1. Follow reference model structure exactly — same CTE names (loans_base, loans_, final), same macro calls, same field order
+2. --depends_on must be {{ ref('src_transactions_${client}') }}
+3. rank_sync: use the loan_id_raw source column, stamp_col='date_of_data'
+4. client_inclusion: case when sync_rank = 1 then True else False end
+5. loan_status CASE: use actual status values from sample data and normalize using LOAN_STATUS_MAP
+6. interest_rate: only divide by 100 if sample values clearly >1
+7. EXTRAS: non-schema columns with categorical filter value only. Numeric non-schema columns ignored.
+8. application_id: use separate col if client has one, otherwise loan_id_raw as application_id
+`,
+
+    customers: `Generate a complete dbt src_customers_${client}.sql model.
+
+Client: ${client}
+Entity: customers
+
+Column mappings (source → target [sample values]):
+${mappingList}
+
+Sample data:
+${allSampleData}
+
+Use sample values to infer gender normalization, geo fields, and customer type.`,
+
+    applications: `Generate src_applications_${client}.sql following the REFERENCE MODEL structure exactly.
+
+Client: ${client}
+
+REFERENCE MODEL:
+${REFERENCE_APPS}
+
+THIS CLIENT'S COLUMN MAPPINGS (source → target [sample values]):
+${mappingList}
+
+ALL CLIENT COLUMNS WITH SAMPLES:
+${allSampleData}
+
+RULES:
+The applications schema has EXACTLY these fields — no more, no less.
+CRITICAL: Always use the SOURCE COLUMN NAME (from the mappings below) not the target field name inside macros.
+
+Given the column mappings, generate:
+
+  {{ generate_fast_id(['SOURCE_OF_application_id']) }} as application_id
+  SOURCE_OF_application_id as loan_id_raw
+  SOURCE_OF_customer_id_raw as customer_id_raw
+  {{ generate_fast_id(['SOURCE_OF_customer_id_raw']) }} as customer_id
+  SOURCE_OF_application_date as application_date   (cast with try_cast(x as date) or timestamp(x))
+  'APPROVED' as application_status
+  {{ rank_sync(['SOURCE_OF_application_id'], stamp_col='date_of_data', updated_at_raw=True) }}
+  case when sync_rank = 1 then True else False end as client_inclusion
+
+RULES:
+1. SOURCE_OF_X means: look at the mappings and find which source column maps to target X
+   e.g. if mappings say "receivable_id → application_id" then SOURCE_OF_application_id = receivable_id
+2. NEVER put target field names inside {{ generate_fast_id() }} or {{ rank_sync() }} — always use the raw source column name
+3. loan_id_raw is always the same raw source column as application_id — no generate_fast_id wrapper
+4. application_status is ALWAYS hardcoded 'APPROVED' — never map a source column to it
+5. Single base CTE: select distinct ... from {{ source('CLIENT', 'TABLE') }}
+6. End with: {{ convert_stage_validation('base', 'applications') }}
+7. NO null_block needed
+8. Column names: lowercase, spaces/special chars → underscores
+9. Source table: infer from context, usually loans
+`,
+
+    transactions: `Generate a complete dbt src_transactions_${client}.sql model.
+
+Client: ${client}
+Entity: transactions
+
+Column mappings (source → target [sample values]):
+${mappingList}
+
+Sample data:
+${allSampleData}
+
+The transactions model must include three CTEs unioned: disbursements_, schedules_ (if schedule data present), payments_.
+Use sample values to infer transaction types and amount fields.
+Include the full union pattern with convert_stage_validation macro.`
+  };
+
+  try {
+    const sql = await callClaude(prompts[entity], systemPrompt);
+    state.generatedSQL[entity] = sql;
+
+    // JSON config
+    const jsonCfg = {};
+    state.mappings.filter(m=>m.target!=='UNMAPPED').forEach(m => { jsonCfg[m.source] = m.target; });
+    state.generatedSQL.json = JSON.stringify({ client, entity, mappings: jsonCfg }, null, 2);
+
+    setGen('Done!', 100);
+    await sleep(400);
+
+    document.getElementById('genLoadingPanel').style.display = 'none';
+    document.getElementById('outputPanel').style.display = 'block';
+    renderOutputTabs();
+    switchOut(entity, document.querySelector('.otab'));
+    setTimeout(generateSummary, 300);
+
+  } catch(e) {
+    document.getElementById('genMsg').textContent = '❌ Error: ' + e.message;
+  }
+}
+
+function renderOutputTabs() {
+  const entity = state.currentEntity;
+  const client = state.clientName || 'client';
+  document.getElementById('outTabs').innerHTML = [
+    { key: entity, label: `src_${entity}_${client}` },
+    { key: 'json',   label: 'JSON config' }
+  ].map((t, i) =>
+    `<button class="otab ${i===0?'active':''}" onclick="switchOut('${t.key}',this)">${t.label}</button>`
+  ).join('');
+}
+
+function switchOut(tab, el) {
+  document.querySelectorAll('.otab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  document.getElementById('outputCode').textContent = state.generatedSQL[tab] || '-- Not yet generated';
+}
+
+function copyOutput() {
+  const text = document.getElementById('outputCode').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = '✓ Copied';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
+  });
+}
+
+function downloadAll() {
+  const client = state.clientName || 'client';
+  const files = [
+    { name: `src_loans_${client}.sql`, content: state.generatedSQL.loans || '' },
+    { name: `src_customers_${client}.sql`, content: state.generatedSQL.customers || '' },
+    { name: `src_transactions_${client}.sql`, content: state.generatedSQL.transactions || '' },
+    { name: `src_applications_${client}.sql`, content: state.generatedSQL.applications || '' },
+    { name: `mapping_${client}.json`, content: state.generatedSQL.json || '' }
+  ];
+  files.forEach(f => {
+    if (!f.content) return;
+    const blob = new Blob([f.content], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = f.name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ============================================================
+// DOWNLOAD FUNCTIONS
+// ============================================================
+function downloadSQL() {
+  const client = state.clientName || 'client';
+  const entity = state.currentEntity;
+  [
+    { name: `src_${entity}_${client}.sql`, content: state.generatedSQL[entity] || '' },
+    { name: `mapping_${client}.json`, content: state.generatedSQL.json || '' }
+  ].forEach(f => {
+    if (!f.content) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([f.content], {type:'text/plain'}));
+    a.download = f.name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+}
+
+function downloadAll() { downloadSQL(); }
+
+function downloadSummary() {
+  const client = state.clientName || 'client';
+  const metrics = document.getElementById('summaryMetrics').innerHTML;
+  const statusHtml = document.getElementById('statusChart').innerHTML;
+  const freqHtml = document.getElementById('freqChart').innerHTML;
+  const productHtml = document.getElementById('productChart').innerHTML;
+  const narrative = document.getElementById('narrativeText').textContent;
+  const mappingTable = document.getElementById('mappingSummaryBody').innerHTML;
+  const qualityHtml = document.getElementById('qualityBody').innerHTML;
+
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<title>Portfolio Summary — ${client}</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:960px;margin:40px auto;padding:0 24px;color:#1a1a2e;line-height:1.6}
+h1{font-size:22px;font-weight:700;margin-bottom:4px}
+.sub{color:#6b7280;font-size:13px;margin-bottom:28px}
+.sec-title{font-size:15px;font-weight:600;margin-bottom:10px;padding-bottom:7px;border-bottom:2px solid #e5e7eb;margin-top:28px}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:20px}
+.metric{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px}
+.metric-lbl{font-size:11px;color:#6b7280;margin-bottom:3px}
+.metric-val{font-size:20px;font-weight:700;color:#1a1a2e}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.chart-box{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px}
+.chart-title{font-size:12px;font-weight:600;margin-bottom:10px;color:#374151}
+.narrative{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 18px;font-size:13px;line-height:1.8;color:#166534}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#f9fafb;padding:9px 12px;text-align:left;font-size:10px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid #e5e7eb}
+td{padding:9px 12px;border-bottom:1px solid #f3f4f6;vertical-align:top}
+.badge{display:inline-block;font-size:9px;font-weight:600;padding:2px 6px;border-radius:99px}
+.b-exact{background:#dcfce7;color:#166534}
+.b-fuzzy{background:#dbeafe;color:#1d4ed8}
+.b-ai{background:#fef9c3;color:#854d0e}
+.b-none{background:#f3f4f6;color:#6b7280}
+.flag{padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:5px}
+.flag-warn{background:#fffbeb;border:1px solid #fcd34d;color:#92400e}
+.flag-ok{background:#f0fdf4;border:1px solid #86efac;color:#166534}
+@media print{body{margin:20px}}
+</style></head><body>
+<h1>Portfolio Summary: ${client.toUpperCase()}</h1>
+<div class="sub">Cascade Schema Mapper · ${new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'})}</div>
+<div class="sec-title">Portfolio Snapshot</div>
+<div class="metrics">${metrics}</div>
+<div class="sec-title">Breakdown</div>
+<div class="charts">
+  <div class="chart-box"><div class="chart-title">Loan Status</div>${statusHtml}</div>
+  <div class="chart-box"><div class="chart-title">Payment Frequency</div>${freqHtml}</div>
+</div>
+<div class="chart-box" style="margin-bottom:14px"><div class="chart-title">Product Types</div>${productHtml}</div>
+<div class="sec-title">AI Analysis</div>
+<div class="narrative">${narrative}</div>
+<div class="sec-title">Field Mapping Summary</div>
+<table><thead><tr><th>Client calls it</th><th>Cascade field</th><th>What it means</th><th>Sample values</th><th>Match</th></tr></thead>
+<tbody>${mappingTable}</tbody></table>
+<div class="sec-title">Data Quality Flags</div>
+${qualityHtml}
+</body></html>`;
+
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([html], {type:'text/html'}));
+  a.download = `summary_${client}_${new Date().toISOString().slice(0,10)}.html`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ============================================================
+// SUMMARY GENERATION
+// ============================================================
+const FIELD_DESCRIPTIONS = {"loan_id_raw":"The client's unique identifier for each loan","customer_id_raw":"The client's unique identifier for each customer","term_raw":"Loan duration (days, months, or years)","loan_status_raw":"Current state of the loan (open, paid, defaulted etc.)","loan_ccy":"Currency the loan is denominated in","interest_rate_raw":"Annual interest rate charged on the loan","interest_rate":"Normalised interest rate (decimal, e.g. 0.15 = 15%)","disburse_amount_raw":"Original amount disbursed to the borrower","disburse_date_raw":"Date the loan was funded / disbursed","product_type_raw":"Type of loan product (installment, pay later, etc.)","rpb_raw":"Remaining principal balance \u2014 how much is still owed","dpd_raw":"Days past due \u2014 how many days the loan is overdue","maturity_date_raw":"Expected final repayment date","credit_score":"Borrower credit score at origination","credit_limit":"Maximum credit line approved","total_interest_raw":"Total interest expected over loan lifetime","total_fees_raw":"Total fees charged (origination, admin, etc.)","total_tax_raw":"Total tax charged on the loan","application_id":"Reference to the original loan application"};
+
+function generateSummary() {
+  if (!state.fileData || !state.mappings.length) return;
+  document.getElementById('summaryPanel').style.display = 'block';
+  document.getElementById('summaryPanel').scrollIntoView({behavior:'smooth', block:'start'});
+
+  const headers = state.fileData.headers;
+  const rows = state.fileData.rows;
+  const client = state.clientName || 'client';
+
+  function colVals(col) {
+    const idx = headers.indexOf(col);
+    if (idx < 0) return [];
+    const allData = state.fileData.allRows || rows;
+    return allData.map(r => r[idx]).filter(v => v && v.trim && v.trim() !== '');
+  }
+  function countDistinct(vals) {
+    const c = {};
+    vals.forEach(v => { c[v] = (c[v]||0)+1; });
+    return Object.entries(c).sort((a,b) => b[1]-a[1]);
+  }
+  function srcFor(target) {
+    const m = state.mappings.find(m => m.target === target);
+    return m ? m.source : null;
+  }
+
+  // Metrics
+  const loanIdCol = srcFor('loan_id_raw');
+  const amountCol = srcFor('disburse_amount_raw');
+  const ccyCol = srcFor('loan_ccy');
+  const statusCol = srcFor('loan_status_raw');
+  const allData = state.fileData.allRows || rows;
+  const uniqueLoans = loanIdCol ? new Set(colVals(loanIdCol)).size : allData.length;
+  const amounts = amountCol ? colVals(amountCol).map(v=>parseFloat(v)).filter(v=>!isNaN(v)&&v>0) : [];
+  const avgAmt = amounts.length ? amounts.reduce((a,b)=>a+b,0)/amounts.length : null;
+  const ccys = ccyCol ? [...new Set(colVals(ccyCol))].filter(Boolean) : [];
+  const unmapped = state.mappings.filter(m=>m.target==='UNMAPPED');
+
+  document.getElementById('summaryMetrics').innerHTML = [
+    {label:'Total records', val: allData.length.toLocaleString()},
+    {label:'Unique loans', val: uniqueLoans.toLocaleString()},
+    {label:'Avg disbursement', val: avgAmt ? (ccys[0]||'') + ' ' + Math.round(avgAmt).toLocaleString() : 'N/A'},
+    {label:'Currency', val: ccys.slice(0,3).join(', ')||'N/A'},
+    {label:'Columns mapped', val: `${state.mappings.filter(m=>m.target!=='UNMAPPED').length} / ${state.mappings.length}`},
+    {label:'Unmapped', val: unmapped.length, warn: unmapped.length > 0},
+  ].map(m => `<div style="background:var(--surface2);border:1px solid ${m.warn?'var(--amber)':'var(--border)'};border-radius:var(--radius);padding:12px 14px">
+    <div style="font-size:11px;color:var(--muted);margin-bottom:3px">${m.label}</div>
+    <div style="font-size:19px;font-weight:600;font-family:'DM Mono',monospace;color:${m.warn?'var(--amber)':'var(--text)'}">${m.val}</div>
+  </div>`).join('');
+
+  function renderBar(containerId, data, color) {
+    const el = document.getElementById(containerId);
+    if (!data.length) { el.innerHTML = '<div style="color:var(--muted);font-size:12px">No data</div>'; return; }
+    const max = data[0][1];
+    el.innerHTML = data.slice(0,8).map(([label, count]) => `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <div style="width:130px;font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escHtml(label)}">${escHtml(label)}</div>
+        <div style="flex:1;background:var(--border);border-radius:4px;height:16px;overflow:hidden">
+          <div style="width:${Math.round(count/max*100)}%;height:100%;background:${color};border-radius:4px"></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;min-width:24px;text-align:right">${count}</div>
+      </div>`).join('');
+  }
+
+  // Status chart — validate that status col actually contains status-like values
+  // (not frequency values like bullet/monthly/weekly)
+  const FREQ_VALUES = new Set(['bullet','monthly','weekly','daily','biweekly','bi-weekly','fortnightly','quarterly','annual','annually','one-time','one_time','bimonthly']);
+  const STATUS_VALUES = new Set(['open','finished','late','closed','active','current','default','paid','complete','completed','written-off','written_off','charged_off','refinanced','restructured','delinquent','pastdue']);
+  
+  let statusVals = statusCol ? colVals(statusCol) : [];
+  // Check if the mapped status col actually has frequency values — if so, look for a better column
+  const sampleStatusVals = statusVals.slice(0, 20).map(v => v.toLowerCase().trim());
+  const hasFreqValues = sampleStatusVals.some(v => FREQ_VALUES.has(v));
+  const hasStatusValues = sampleStatusVals.some(v => STATUS_VALUES.has(v));
+  
+  if (hasFreqValues && !hasStatusValues) {
+    // Wrong column — try to find the real status column by scanning all columns
+    const betterStatusCol = headers.find(h => {
+      const vals = colVals(h).slice(0,20).map(v => v.toLowerCase().trim());
+      return vals.some(v => STATUS_VALUES.has(v)) && !vals.some(v => FREQ_VALUES.has(v));
+    });
+    statusVals = betterStatusCol ? colVals(betterStatusCol) : [];
+  }
+  
+  // Use raw client status values — normalization is for SQL only, not the summary chart
+  renderBar('statusChart', countDistinct(statusVals), 'var(--accent)');
+
+  // Freq chart — find by target mapping first, then fallback to source name search
+  const freqMapped = srcFor('frequency_type');
+  const freqByName = state.mappings.find(m => 
+    m.source.toLowerCase().includes('freq') || 
+    m.source.toLowerCase().includes('payment_freq') ||
+    m.source.toLowerCase().includes('periodicity')
+  )?.source;
+  const freqCol = freqMapped || freqByName;
+  
+  // Validate freq col has frequency-like values
+  const freqVals = freqCol ? colVals(freqCol) : [];
+  const sampleFreqVals = freqVals.slice(0,20).map(v => v.toLowerCase().trim());
+  const isActuallyFreq = sampleFreqVals.some(v => FREQ_VALUES.has(v));
+  
+  // If mapped freq col doesn't look like freq, scan for the right one
+  const actualFreqVals = isActuallyFreq ? freqVals : (() => {
+    const col = headers.find(h => {
+      const vals = colVals(h).slice(0,20).map(v => v.toLowerCase().trim());
+      return vals.some(v => FREQ_VALUES.has(v));
+    });
+    return col ? colVals(col) : [];
+  })();
+  
+  renderBar('freqChart', countDistinct(actualFreqVals), 'var(--blue)');
+
+  const prodCol = srcFor('product_type_raw');
+  renderBar('productChart', countDistinct(prodCol ? colVals(prodCol) : []), 'var(--amber)');
+
+  // Mapping table
+  const BADGE = {EXACT:'badge-exact',FUZZY:'badge-fuzzy',AI:'badge-ai',NONE:'badge-none',UNMAPPED:'badge-none'};
+  const BADGE_LBL = {EXACT:'Exact',FUZZY:'Fuzzy',AI:'AI',NONE:'—',UNMAPPED:'Unmapped'};
+  document.getElementById('mappingSummaryBody').innerHTML = state.mappings.map(m => {
+    const samples = (m.sampleValues||[]).slice(0,3).join(', ')||'—';
+    const desc = m.target!=='UNMAPPED' ? (FIELD_DESCRIPTIONS[m.target]||m.target.replace(/_/g,' ')) : 'Not mapped to Cascade schema';
+    return `<tr>
+      <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text)">${escHtml(m.source)}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:11px;color:${m.target==='UNMAPPED'?'var(--muted)':'var(--accent)'}">${escHtml(m.target)}</td>
+      <td style="font-size:12px;color:var(--text)">${desc}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">${escHtml(samples)}</td>
+      <td><span class="method-badge ${BADGE[m.method]||'badge-none'}">${BADGE_LBL[m.method]||m.method}</span></td>
+    </tr>`;
+  }).join('');
+
+  // Quality flags
+  const flags = [];
+  if (unmapped.length) flags.push({warn:true, msg:`${unmapped.length} column(s) not mapped: ${unmapped.map(m=>m.source).join(', ')}`});
+  if (!loanIdCol) flags.push({warn:true, msg:'No loan ID column found — rank_sync needs manual config'});
+  if (!amountCol) flags.push({warn:true, msg:'No disbursement amount column found'});
+  if (!statusCol) flags.push({warn:true, msg:'No loan status column found — status CASE will be empty'});
+  const exact = state.mappings.filter(m=>m.method==='EXACT').length;
+  flags.push({warn:false, msg:`${exact} of ${state.mappings.length} columns matched exactly from 119-client knowledge base`});
+  document.getElementById('qualityBody').innerHTML = flags.map(f =>
+    `<div style="padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:5px;background:${f.warn?'var(--amber-dim)':'var(--accent-dim)'};border:1px solid ${f.warn?'rgba(251,191,36,.3)':'rgba(74,222,128,.3)'};color:${f.warn?'var(--amber)':'var(--accent)'}">${f.warn?'⚠️':'✓'} ${escHtml(f.msg)}</div>`
+  ).join('');
+
+  // AI narrative
+  document.getElementById('narrativeSpinner').style.display = 'inline-block';
+  document.getElementById('narrativeText').textContent = 'Generating…';
+  const ctx = `Client: ${client}, Records: ${allData.length}, Unique loans: ${uniqueLoans}, Currency: ${ccys.join(', ')||'unknown'}, Avg disbursement: ${avgAmt?Math.round(avgAmt).toLocaleString():'unknown'}, Loan statuses: ${countDistinct(statusVals).map(([k,v])=>k+': '+v).join(', ')}, Payment frequencies: ${countDistinct(actualFreqVals).map(([k,v])=>k+': '+v).join(', ')}, Product types: ${countDistinct(prodCol?colVals(prodCol):[]).map(([k,v])=>k+': '+v).join(', ')}`;
+  callClaude(`Write a concise 3-4 sentence portfolio summary for an account manager. Plain English, no SQL, no bullets. Cover: loan types, portfolio health from status distribution, payment structure, any data quality notes.\n\n${ctx}`)
+    .then(t => { document.getElementById('narrativeText').textContent = t; document.getElementById('narrativeSpinner').style.display = 'none'; })
+    .catch(e => { document.getElementById('narrativeText').textContent = 'Could not generate: ' + e.message; document.getElementById('narrativeSpinner').style.display = 'none'; });
+}
+
+function validateAndContinue() {
+  const cn = document.getElementById('clientNameInput');
+  if (cn && !cn.value.trim()) {
+    cn.style.borderColor = 'var(--orange)';
+    cn.focus();
+    return;
+  }
+  if (cn) state.clientName = cn.value.trim().toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_');
+  // Select all columns automatically and go straight to mapping
+  state.selectedCols = new Set(state.fileData.headers);
+  goToStep(2);
+}
+</script>
+</body>
+</html>
+
+</body>
+</html>
